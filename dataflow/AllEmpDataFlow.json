@@ -1,0 +1,57 @@
+{
+	"name": "AllEmpDataFlow",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "EmpPartdata",
+						"type": "DatasetReference"
+					},
+					"name": "EmpPartData1"
+				},
+				{
+					"dataset": {
+						"referenceName": "EmpIncData",
+						"type": "DatasetReference"
+					},
+					"name": "EmpIncSource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DelimitedText1",
+						"type": "DatasetReference"
+					},
+					"name": "EmpIncPart"
+				}
+			],
+			"transformations": [
+				{
+					"name": "DerivedColumn1"
+				},
+				{
+					"name": "Aggregate1"
+				},
+				{
+					"name": "Join1"
+				},
+				{
+					"name": "SurrogateKey1"
+				},
+				{
+					"name": "DerivedColumn2"
+				},
+				{
+					"name": "Select1"
+				},
+				{
+					"name": "Union1"
+				}
+			],
+			"script": "source(output(\n\t\tname as string,\n\t\tgender as string,\n\t\tdepartment as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> EmpPartData1\nsource(output(\n\t\tid as string,\n\t\tname as string,\n\t\tgender as string,\n\t\tdepartment as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> EmpIncSource\nEmpIncSource derive(dummy = 'dummy') ~> DerivedColumn1\nDerivedColumn1 aggregate(groupBy(dummy),\n\tmaxid = max(id)) ~> Aggregate1\nAggregate1, EmpPartData1 join(1==1,\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> Join1\nJoin1 keyGenerate(output(id as long),\n\tstartAt: 1L) ~> SurrogateKey1\nSurrogateKey1 derive(id = toString(toInteger(id) + toInteger(maxid))) ~> DerivedColumn2\nDerivedColumn2 select(mapColumn(\n\t\tid,\n\t\tname,\n\t\tgender,\n\t\tdepartment\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nEmpIncSource, Select1 union(byName: true)~> Union1\nUnion1 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['EmpIncPart.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> EmpIncPart"
+		}
+	}
+}
